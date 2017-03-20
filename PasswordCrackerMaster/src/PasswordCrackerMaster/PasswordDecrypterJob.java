@@ -19,7 +19,17 @@ public class PasswordDecrypterJob {
      * @return the result value
      */
     public String getPassword() {
-        /** COMPLETE **/
+      String password = null;
+      try {
+        password = passwordFuture.get();
+          /** COMPLETE **/
+      } catch (InterruptedException e) {
+
+      } catch (ExecutionException e) {
+
+      }
+
+      return password;
 
     }
     
@@ -34,6 +44,7 @@ public class PasswordDecrypterJob {
      */
     public void setPassword(String password) {
         /** COMPLETE **/
+        passwordFuture.complete(password);
     }
     
 }

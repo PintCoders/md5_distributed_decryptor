@@ -40,9 +40,11 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
             throws TException {
         PasswordDecrypterJob decryptJob = new PasswordDecrypterJob();
         jobInfoMap.put(encryptedPassword, decryptJob);
-
         /** COMPLETE **/
 
+        requestFindPassword(encryptedPassword, 0l, SUB_RANGE_SIZE);
+
+        return decryptJob.getPassword(); 
     }
 
     /*
@@ -133,6 +135,12 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
             String findPasswordResult = startFindPasswordInRange_call.getResult();
             /** COMPLETE **/
 
+            if (findPasswordResult != null)
+              jobTermination(findPasswordResult);
+
+            PasswordDecrypterJob futureJob = jobInfoMap.get(jobId);
+            futureJob.setPassword(findPasswordResult);
+
         }
         catch (TException e) {
             e.printStackTrace();
@@ -155,6 +163,17 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
                         AsyncClient(new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workerAddress, WORKER_PORT));
                 /** COMPLETE **/
 
+                worker.reportTermination(jobId, new AsyncMethodCallback<PasswordCrackerWorkerService.AsyncClient.reportTermination_call>() {
+                  @Override
+                  public void onComplete(PasswordCrackerWorkerService.AsyncClient.reportTermination_call termination) {
+                  }
+
+                  @Override
+                  public void onError(Exception e) {
+                    System.out.println("Error : startFindPasswordInRange of FindPasswordMethodCallback");
+                  }
+                
+                });
             }
         }
         catch (TException e) {
