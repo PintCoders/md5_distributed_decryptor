@@ -74,6 +74,7 @@ public class PasswordCrackerWorkerMain {
 
             TServer server = new TThreadedSelectorServer(workerServerArgs);
 
+			System.out.println("Waiting for client");
             server.serve();
         } catch (TTransportException e) {
             e.printStackTrace();

@@ -36,7 +36,7 @@ public class PasswordCrackerWorkerServiceHandler implements PasswordCrackerWorke
     public String startFindPasswordInRange(long rangeBegin, long rangeEnd, String encryptedPassword) throws TException {
         //xxx : 중간에 하나의 머신이 중지되서 다른 머신에서 하나의 쓰레드를 추가로 돌릴때 termination Checker 클래스 생성 문제
         // Termination Checker는 encryptedPassword 당 하나 생성이 되어야 한다.
-        
+		System.out.println("I got an job request");
         String passwordOrNull = null;
 
         try {
@@ -68,6 +68,7 @@ public class PasswordCrackerWorkerServiceHandler implements PasswordCrackerWorke
     public void reportTermination(String jobId) throws TException {
 		TerminationChecker terminationChecker = terminationCheckerMap.get(jobId);
 		terminationChecker.setTerminated();
+		terminationCheckerMap.remove(jobId);
     }
 
 }

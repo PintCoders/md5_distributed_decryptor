@@ -4,7 +4,8 @@
     <property name="classes.dir"    value="${build.dir}/classes"/>
     <property name="jar.dir"        value="."/>
     <property name="lib.dir"        value="../lib"/>
-    <property name="masterPort"     value="8000"/>
+    <property name="masterPort"     value="18000"/>
+    <property name="workerPort"     value="17000"/>
 
     <property name="main-class"     value="PasswordCrackerMaster.PasswordCrackerMasterMain"/>
 
@@ -38,6 +39,7 @@
         </classpath>
      <jvmarg line="" />
      <arg value ="${masterPort}" />
+     <arg value ="${workerPort}" />
      </java>
      </target>
      <target name="clean-build" depends="clean,jar"/>

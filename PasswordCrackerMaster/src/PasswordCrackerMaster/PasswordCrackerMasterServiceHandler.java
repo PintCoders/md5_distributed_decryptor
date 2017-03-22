@@ -147,11 +147,11 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
             String findPasswordResult = startFindPasswordInRange_call.getResult();
             /** COMPLETE **/
 
-            if (findPasswordResult != null)
-              jobTermination(findPasswordResult);
-
-            PasswordDecrypterJob futureJob = jobInfoMap.get(jobId);
-            futureJob.setPassword(findPasswordResult);
+			if (findPasswordResult != null) {
+				jobTermination(jobId);
+				PasswordDecrypterJob futureJob = jobInfoMap.get(jobId);
+				futureJob.setPassword(findPasswordResult);
+			}
 
         }
         catch (TException e) {
@@ -182,7 +182,7 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
 
                   @Override
                   public void onError(Exception e) {
-                    System.out.println("Error : startFindPasswordInRange of FindPasswordMethodCallback");
+                    System.out.println("Error : reportTermination " + e.getMessage());
                   }
                 
                 });
