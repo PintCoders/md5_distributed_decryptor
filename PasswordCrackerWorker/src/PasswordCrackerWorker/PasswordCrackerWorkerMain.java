@@ -86,9 +86,12 @@ public class PasswordCrackerWorkerMain {
     public static void transferHeartBeat(PasswordCrackerMasterService.Client masterService) {
 		try {
 			masterService.reportHeartBeat(workerHostAddress);
+
+			// Critical error, exit with error code
 		} catch (TException e){
-			System.err.println("Cant report my heart beat IP:" + workerHostAddress);
+			System.err.println("Cant report my heart beat, Master not reachable IP:" + workerHostAddress);
 			e.printStackTrace();
+			System.exit(1);
 		}
     }
 }

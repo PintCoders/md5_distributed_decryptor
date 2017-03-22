@@ -42,7 +42,6 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
         jobInfoMap.put(encryptedPassword, decryptJob);
         /** COMPLETE **/
 
-        //workerPool.submit(() -> 
         requestFindPassword(encryptedPassword, 0l, SUB_RANGE_SIZE);
 
         return decryptJob.getPassword(); 
@@ -90,10 +89,46 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
      * Check the checkHeartBeat method
      */
     public static void redistributeFailedTask(ArrayList<Integer> failedWorkerIdList) {
-        // For each of the jobs 
-        for (String key : jobInfoMap.keySet()) {
-        
-        }
+		class RangePair {
+			long first;
+			long second;
+			RangePair(long A, long B) {
+				this.first = A;
+				this.second = B;
+			}
+		}
+
+		ArrayList<RangePair> ranges = new ArrayList<> ();
+
+		for (Integer workerId : failedWorkerIdList) {
+			long subRangeBegin = workerId * SUB_RANGE_SIZE;
+			long subRangeEnd = subRangeBegin + SUB_RANGE_SIZE;
+
+			ranges.add(new RangePair(subRangeBegin, subRangeEnd));
+			workersAddressList.remove(workerId);
+		}
+
+
+		// For each of the jobs 
+        PasswordCrackerWorkerService.AsyncClient worker = null;
+		for (String key : jobInfoMap.keySet()) {
+			FindPasswordMethodCallback findPasswordCallBack = new FindPasswordMethodCallback(key);
+			try {
+				int workerId = 0;
+				for (RangePair pair : ranges) {
+					worker = new PasswordCrackerWorkerService.AsyncClient(
+							new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workersAddressList.get(workerId), WORKER_PORT));
+					worker.startFindPasswordInRange(pair.first, pair.second, key, findPasswordCallBack);
+					workerId = (workerId + 1) % workersAddressList.size();
+				}
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
+			catch (TException e) {
+				e.printStackTrace();
+			}
+		}
 
         /** COMPLETE **/
     }
@@ -103,7 +138,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
      *  it considers the workers that didn't send the "HeartBeat" as dead.
      *  And then, it redistributes the dead workers's job in other alive workers
      *
-     *  hint : use latestHeartbeatinMillis, workerAddressList
+     *  hint : use latestHeartbeatinMillis, workersAddressList
      *
      *  you must think about when several workers is dead.
      *
@@ -178,6 +213,7 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
                 worker.reportTermination(jobId, new AsyncMethodCallback<PasswordCrackerWorkerService.AsyncClient.reportTermination_call>() {
                   @Override
                   public void onComplete(PasswordCrackerWorkerService.AsyncClient.reportTermination_call termination) {
+					  jobInfoMap.remove(jobId);
                   }
 
                   @Override
