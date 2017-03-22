@@ -49,7 +49,7 @@ public class PasswordCrackerWorkerServiceHandler implements PasswordCrackerWorke
 
             /** COMPLETE **/
             //get the result using Future class
-
+			passwordOrNull = workerFuture.get();
 
 
         } catch (InterruptedException e) {
@@ -66,8 +66,8 @@ public class PasswordCrackerWorkerServiceHandler implements PasswordCrackerWorke
      */
     @Override
     public void reportTermination(String jobId) throws TException {
-        /** COMPLETE **/
-
+		TerminationChecker terminationChecker = terminationCheckerMap.get(jobId);
+		terminationChecker.setTerminated();
     }
 
 }

@@ -42,6 +42,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
         jobInfoMap.put(encryptedPassword, decryptJob);
         /** COMPLETE **/
 
+        //workerPool.submit(() -> 
         requestFindPassword(encryptedPassword, 0l, SUB_RANGE_SIZE);
 
         return decryptJob.getPassword(); 
@@ -54,7 +55,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
     @Override
     public void reportHeartBeat(String workerAddress)
             throws TException {
-        /** COMPLETE **/
+            latestHeartbeatInMillis.put(workerAddress, System.currentTimeMillis());
     }
 
     /*
@@ -89,8 +90,12 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
      * Check the checkHeartBeat method
      */
     public static void redistributeFailedTask(ArrayList<Integer> failedWorkerIdList) {
-        /** COMPLETE **/
+        // For each of the jobs 
+        for (String key : jobInfoMap.keySet()) {
+        
+        }
 
+        /** COMPLETE **/
     }
 
     /*
@@ -108,12 +113,19 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
         /** COMPLETE **/
         int workerId = 0;
         final long thresholdAge = 5_000;
+        long currentTime = System.currentTimeMillis();
 
         ArrayList<Integer> failedWorkerIdList = new ArrayList<>();
 
+        for (String addr : workersAddressList) {
+          long originTime = latestHeartbeatInMillis.get(addr);
+          long timeElapsed = currentTime - originTime;
+          if (timeElapsed > thresholdAge)
+            failedWorkerIdList.add(workerId);
 
-
-
+          workerId++;
+        }
+        redistributeFailedTask(failedWorkerIdList);
     }
 }
 

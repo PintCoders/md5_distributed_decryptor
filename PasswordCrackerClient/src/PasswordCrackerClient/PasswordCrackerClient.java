@@ -29,6 +29,7 @@ public class PasswordCrackerClient {
             /** COMPLETE **/
             // Invokes a method in Master (via RPC) and gives the encrypted password and return the original password
 
+            String password = passwordCrackerService.decrypt(encryptedPassword);
             // ---
             System.out.println("encryptedPassword : " + encryptedPassword + "\npassword : " + password);
 

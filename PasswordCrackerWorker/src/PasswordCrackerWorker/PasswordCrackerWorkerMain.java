@@ -83,6 +83,11 @@ public class PasswordCrackerWorkerMain {
     // Transfer heartbeat to master
 
     public static void transferHeartBeat(PasswordCrackerMasterService.Client masterService) {
-        /** COMPLETE **/
+		try {
+			masterService.reportHeartBeat(workerHostAddress);
+		} catch (TException e){
+			System.err.println("Cant report my heart beat IP:" + workerHostAddress);
+			e.printStackTrace();
+		}
     }
 }

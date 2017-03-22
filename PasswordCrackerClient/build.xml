@@ -4,11 +4,11 @@
     <property name="classes.dir"    value="${build.dir}/classes"/>
     <property name="jar.dir"        value="."/>
     <property name="lib.dir"        value="../lib"/>
-    <property name="masterAddress"  value="0.0.0.1"/>
+    <property name="masterAddress"  value="10.20.13.123"/>
     <property name="masterPort"     value="8000"/>
     <property name="encryptedPassword"  value=" "/>
 
-    <property name="main-class"     value="PasswordCrackerClient.PasswordCrackerClientMain"/>
+    <property name="main-class"     value="PasswordCrackerClient.PasswordCrackerClient"/>
 
     <path id="classpath">
         <fileset dir="${lib.dir}" includes="*.jar"/>
