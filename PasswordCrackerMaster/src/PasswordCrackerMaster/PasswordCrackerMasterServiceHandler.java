@@ -36,8 +36,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
      * And call the requestFindPassword and if it finds the password, it return the password to the client.
      */
     @Override
-    public String decrypt(String encryptedPassword)
-            throws TException {
+    public String decrypt(String encryptedPassword) throws TException {
         PasswordDecrypterJob decryptJob = new PasswordDecrypterJob();
         jobInfoMap.put(encryptedPassword, decryptJob);
         /** COMPLETE **/
@@ -48,7 +47,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
     }
 
     /*
-     * The reportHeartBeat receives the heartBeat from workers.
+     * The reportHeartBeat receives the Heartbeat from workers.
      * Consider the checkHeartBeat method and use latestHeartbeatInMillis map.
     */
     @Override
@@ -89,46 +88,46 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
      * Check the checkHeartBeat method
      */
     public static void redistributeFailedTask(ArrayList<Integer> failedWorkerIdList) {
-		class RangePair {
-			long first;
-			long second;
-			RangePair(long A, long B) {
-				this.first = A;
-				this.second = B;
-			}
-		}
+        class RangePair {
+            long first;
+            long second;
+            RangePair(long A, long B) {
+                this.first = A;
+                this.second = B;
+            }
+        }
 
-		ArrayList<RangePair> ranges = new ArrayList<> ();
+        ArrayList<RangePair> ranges = new ArrayList<> ();
 
-		for (Integer workerId : failedWorkerIdList) {
-			long subRangeBegin = workerId * SUB_RANGE_SIZE;
-			long subRangeEnd = subRangeBegin + SUB_RANGE_SIZE;
+        for (Integer workerId : failedWorkerIdList) {
+            long subRangeBegin = workerId * SUB_RANGE_SIZE;
+            long subRangeEnd = subRangeBegin + SUB_RANGE_SIZE;
 
-			ranges.add(new RangePair(subRangeBegin, subRangeEnd));
-			workersAddressList.remove(workerId);
-		}
+            ranges.add(new RangePair(subRangeBegin, subRangeEnd));
+            workersAddressList.remove(workerId.intValue());
+        }
 
 
-		// For each of the jobs 
+        // For each of the jobs 
         PasswordCrackerWorkerService.AsyncClient worker = null;
-		for (String key : jobInfoMap.keySet()) {
-			FindPasswordMethodCallback findPasswordCallBack = new FindPasswordMethodCallback(key);
-			try {
-				int workerId = 0;
-				for (RangePair pair : ranges) {
-					worker = new PasswordCrackerWorkerService.AsyncClient(
-							new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workersAddressList.get(workerId), WORKER_PORT));
-					worker.startFindPasswordInRange(pair.first, pair.second, key, findPasswordCallBack);
-					workerId = (workerId + 1) % workersAddressList.size();
-				}
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-			catch (TException e) {
-				e.printStackTrace();
-			}
-		}
+        for (String key : jobInfoMap.keySet()) {
+            FindPasswordMethodCallback findPasswordCallBack = new FindPasswordMethodCallback(key);
+            try {
+                int workerId = 0;
+                for (RangePair pair : ranges) {
+                    worker = new PasswordCrackerWorkerService.AsyncClient(
+                            new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workersAddressList.get(workerId), WORKER_PORT));
+                    worker.startFindPasswordInRange(pair.first, pair.second, key, findPasswordCallBack);
+                    workerId = (workerId + 1) % workersAddressList.size();
+                }
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+            catch (TException e) {
+                e.printStackTrace();
+            }
+        }
 
         /** COMPLETE **/
     }
@@ -136,7 +135,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
     /*
      *  If the master didn't receive the "HeartBeat" in 5 seconds from any workers,
      *  it considers the workers that didn't send the "HeartBeat" as dead.
-     *  And then, it redistributes the dead workers's job in other alive workers
+     *  And then, it redistributes the dead worker's job in other alive workers
      *
      *  hint : use latestHeartbeatinMillis, workersAddressList
      *
@@ -155,8 +154,10 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
         for (String addr : workersAddressList) {
           long originTime = latestHeartbeatInMillis.get(addr);
           long timeElapsed = currentTime - originTime;
-          if (timeElapsed > thresholdAge)
+          if (timeElapsed > thresholdAge) {
             failedWorkerIdList.add(workerId);
+            System.out.println("Lost Worker [Addr " + addr + " : time " + timeElapsed + "]");
+          }
 
           workerId++;
         }
@@ -182,11 +183,11 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
             String findPasswordResult = startFindPasswordInRange_call.getResult();
             /** COMPLETE **/
 
-			if (findPasswordResult != null) {
-				jobTermination(jobId);
-				PasswordDecrypterJob futureJob = jobInfoMap.get(jobId);
-				futureJob.setPassword(findPasswordResult);
-			}
+            if (findPasswordResult != null) {
+                jobTermination(jobId);
+                PasswordDecrypterJob futureJob = jobInfoMap.get(jobId);
+                futureJob.setPassword(findPasswordResult);
+            }
 
         }
         catch (TException e) {
@@ -213,7 +214,7 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
                 worker.reportTermination(jobId, new AsyncMethodCallback<PasswordCrackerWorkerService.AsyncClient.reportTermination_call>() {
                   @Override
                   public void onComplete(PasswordCrackerWorkerService.AsyncClient.reportTermination_call termination) {
-					  jobInfoMap.remove(jobId);
+                      jobInfoMap.remove(jobId);
                   }
 
                   @Override
