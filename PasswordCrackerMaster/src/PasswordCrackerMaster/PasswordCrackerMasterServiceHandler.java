@@ -20,6 +20,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static PasswordCrackerMaster.PasswordCrackerConts.SUB_RANGE_SIZE;
 import static PasswordCrackerMaster.PasswordCrackerConts.WORKER_PORT;
+import static PasswordCrackerMaster.PasswordCrackerConts.NUMBER_OF_WORKER;
 import static PasswordCrackerMaster.PasswordCrackerMasterServiceHandler.jobInfoMap;
 import static PasswordCrackerMaster.PasswordCrackerMasterServiceHandler.workersAddressList;
 
@@ -30,6 +31,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
     public static ConcurrentHashMap<String, Long> latestHeartbeatInMillis = new ConcurrentHashMap<>(); // <workerAddress, time>
     public static ExecutorService workerPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
     public static ScheduledExecutorService heartBeatCheckPool = Executors.newScheduledThreadPool(1);
+    public static ConcurrentHashMap<Integer, List<PasswordTask>> taskMap = new ConcurrentHashMap<>();
 
     /*
      * The decrypt method create the job and put the job with jobId (encrypted Password) in map.
@@ -39,8 +41,6 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
     public String decrypt(String encryptedPassword) throws TException {
         PasswordDecrypterJob decryptJob = new PasswordDecrypterJob();
         jobInfoMap.put(encryptedPassword, decryptJob);
-        /** COMPLETE **/
-
         requestFindPassword(encryptedPassword, 0l, SUB_RANGE_SIZE);
 
         return decryptJob.getPassword(); 
@@ -63,15 +63,19 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
         PasswordCrackerWorkerService.AsyncClient worker = null;
         FindPasswordMethodCallback findPasswordCallBack = new FindPasswordMethodCallback(encryptedPassword);
         try {
-            int workerId = 0;
-            for (String workerAddress : workersAddressList) {
+            for (int taskId = 0; taskId < NUMBER_OF_WORKER; taskId++) {
+                int workerId = taskId % workersAddressList.size();
+                String workerAddress = workersAddressList.get(workerId);
 
-                long subRangeBegin = rangeBegin + (workerId * subRangeSize);
+                long subRangeBegin = rangeBegin + (taskId * subRangeSize);
                 long subRangeEnd = subRangeBegin + subRangeSize;
 
                 worker = new PasswordCrackerWorkerService.AsyncClient(new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workerAddress, WORKER_PORT));
                 worker.startFindPasswordInRange(subRangeBegin, subRangeEnd, encryptedPassword, findPasswordCallBack);
-                workerId++;
+
+                List<PasswordTask> listOfTasks = new LinkedList<>();
+                taskMap.putIfAbsent(workerId, listOfTasks);
+                taskMap.get(workerId).add(new PasswordTask(subRangeBegin, subRangeEnd, workerId, encryptedPassword));
             }
         }
         catch (IOException e) {
@@ -88,48 +92,32 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
      * Check the checkHeartBeat method
      */
     public static void redistributeFailedTask(ArrayList<Integer> failedWorkerIdList) {
-        class RangePair {
-            long first;
-            long second;
-            RangePair(long A, long B) {
-                this.first = A;
-                this.second = B;
-            }
+
+        for (Integer workerIdInteger : failedWorkerIdList) {
+            workersAddressList.remove(workerIdInteger.intValue());
         }
-
-        ArrayList<RangePair> ranges = new ArrayList<> ();
-
-        for (Integer workerId : failedWorkerIdList) {
-            long subRangeBegin = workerId * SUB_RANGE_SIZE;
-            long subRangeEnd = subRangeBegin + SUB_RANGE_SIZE;
-
-            ranges.add(new RangePair(subRangeBegin, subRangeEnd));
-            workersAddressList.remove(workerId.intValue());
-        }
-
 
         // For each of the jobs 
         PasswordCrackerWorkerService.AsyncClient worker = null;
-        for (String key : jobInfoMap.keySet()) {
-            FindPasswordMethodCallback findPasswordCallBack = new FindPasswordMethodCallback(key);
-            try {
-                int workerId = 0;
-                for (RangePair pair : ranges) {
+        for (Integer workerIdInteger : failedWorkerIdList) {
+            for (PasswordTask task : taskMap.get(workerIdInteger.intValue())) {
+                try {
+                    int workerId = task.workerId % workersAddressList.size();
+                    task.workerId = workerId;
+
+                    FindPasswordMethodCallback findPasswordCallBack = new FindPasswordMethodCallback(task.encryptedPassword);
                     worker = new PasswordCrackerWorkerService.AsyncClient(
                             new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workersAddressList.get(workerId), WORKER_PORT));
-                    worker.startFindPasswordInRange(pair.first, pair.second, key, findPasswordCallBack);
-                    workerId = (workerId + 1) % workersAddressList.size();
+                    worker.startFindPasswordInRange(task.lowerBoundary, task.upperBoundary, task.encryptedPassword, findPasswordCallBack);
+                }
+                catch (IOException e) {
+                    e.printStackTrace();
+                }
+                catch (TException e) {
+                    e.printStackTrace();
                 }
             }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
-            catch (TException e) {
-                e.printStackTrace();
-            }
         }
-
-        /** COMPLETE **/
     }
 
     /*
@@ -233,3 +221,18 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
         }
     }
 }
+
+
+class PasswordTask {
+        public final long lowerBoundary;
+        public final long upperBoundary;
+        public final String encryptedPassword;
+
+        public int workerId;
+        PasswordTask(long lowerBoundary, long upperBoundary, int workerId, String encryptedPassword) {
+            this.lowerBoundary = lowerBoundary;
+            this.upperBoundary = upperBoundary;
+            this.workerId = workerId;
+            this.encryptedPassword = encryptedPassword;
+        }
+    }
