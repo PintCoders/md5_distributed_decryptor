@@ -23,6 +23,7 @@ import static PasswordCrackerMaster.PasswordCrackerConts.WORKER_PORT;
 import static PasswordCrackerMaster.PasswordCrackerConts.NUMBER_OF_WORKER;
 import static PasswordCrackerMaster.PasswordCrackerMasterServiceHandler.jobInfoMap;
 import static PasswordCrackerMaster.PasswordCrackerMasterServiceHandler.workersAddressList;
+import static PasswordCrackerMaster.PasswordCrackerMasterServiceHandler.taskMap;
 
 public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMasterService.Iface {
     public static List<TSocket> workersSocketList = new LinkedList<>();  //Connected Socket
@@ -43,7 +44,9 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
         jobInfoMap.put(encryptedPassword, decryptJob);
         requestFindPassword(encryptedPassword, 0l, SUB_RANGE_SIZE);
 
-        return decryptJob.getPassword(); 
+        String password = decryptJob.getPassword();
+        jobInfoMap.remove(encryptedPassword);
+        return password; 
     }
 
     /*
@@ -77,6 +80,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
                 taskMap.putIfAbsent(workerId, listOfTasks);
                 taskMap.get(workerId).add(new PasswordTask(subRangeBegin, subRangeEnd, workerId, encryptedPassword));
             }
+            System.out.println(taskMap.toString());
         }
         catch (IOException e) {
             e.printStackTrace();
@@ -100,12 +104,20 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
         // For each of the jobs 
         PasswordCrackerWorkerService.AsyncClient worker = null;
         for (Integer workerIdInteger : failedWorkerIdList) {
-            for (PasswordTask task : taskMap.get(workerIdInteger.intValue())) {
-                try {
+            List<PasswordTask> listTask = taskMap.get(workerIdInteger.intValue());
+            taskMap.remove(workerIdInteger.intValue());
+            System.out.println(listTask.toString());
+            for (PasswordTask task : listTask) {
+
                     int workerId = task.workerId % workersAddressList.size();
+                    System.out.println("Reassigning task: " + task.workerId + " to workerId:" + workerId);
                     task.workerId = workerId;
+                    taskMap.putIfAbsent(workerId, new LinkedList<>());
+                    taskMap.get(workerId).add(task);
 
                     FindPasswordMethodCallback findPasswordCallBack = new FindPasswordMethodCallback(task.encryptedPassword);
+
+                try {
                     worker = new PasswordCrackerWorkerService.AsyncClient(
                             new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workersAddressList.get(workerId), WORKER_PORT));
                     worker.startFindPasswordInRange(task.lowerBoundary, task.upperBoundary, task.encryptedPassword, findPasswordCallBack);
@@ -175,6 +187,13 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
                 jobTermination(jobId);
                 PasswordDecrypterJob futureJob = jobInfoMap.get(jobId);
                 futureJob.setPassword(findPasswordResult);
+                taskMap.forEach((k,v) ->  {
+                    v.forEach((task) -> {
+                        if (task.encryptedPassword.equals(jobId)){
+                            v.remove(task);
+                        }
+                    });
+                });
             }
 
         }
@@ -202,7 +221,6 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
                 worker.reportTermination(jobId, new AsyncMethodCallback<PasswordCrackerWorkerService.AsyncClient.reportTermination_call>() {
                   @Override
                   public void onComplete(PasswordCrackerWorkerService.AsyncClient.reportTermination_call termination) {
-                      jobInfoMap.remove(jobId);
                   }
 
                   @Override
