@@ -3,6 +3,8 @@ package PasswordCrackerWorker;
 import org.apache.thrift.TException;
 import thrift.gen.PasswordCrackerWorkerService.PasswordCrackerWorkerService;
 import java.util.concurrent.*;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import static PasswordCrackerWorker.PasswordCrackerUtil.findPasswordInRange;
 
@@ -36,10 +38,11 @@ public class PasswordCrackerWorkerServiceHandler implements PasswordCrackerWorke
     public String startFindPasswordInRange(long rangeBegin, long rangeEnd, String encryptedPassword) throws TException {
         //xxx : 중간에 하나의 머신이 중지되서 다른 머신에서 하나의 쓰레드를 추가로 돌릴때 termination Checker 클래스 생성 문제
         // Termination Checker는 encryptedPassword 당 하나 생성이 되어야 한다.
-		System.out.println("Task arrived (PASSWD:" + encryptedPassword+")");
+        
         String passwordOrNull = null;
-
         try {
+            System.out.println("IP:" + InetAddress.getLocalHost().getHostAddress() +  " Task arrived (PASSWD:" + encryptedPassword+")");
+
             if (!terminationCheckerMap.containsKey(encryptedPassword)) {
                 terminationCheckerMap.put(encryptedPassword, new TerminationChecker());
             }
@@ -50,15 +53,17 @@ public class PasswordCrackerWorkerServiceHandler implements PasswordCrackerWorke
             /** COMPLETE **/
             //get the result using Future class
 			passwordOrNull = workerFuture.get();
-            terminationCheckerMap.remove(encryptedPassword);
 
 
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
             e.printStackTrace();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } finally {
+            return passwordOrNull;
         }
-        return passwordOrNull;
     }
 
     /*
@@ -70,6 +75,7 @@ public class PasswordCrackerWorkerServiceHandler implements PasswordCrackerWorke
         if (terminationCheckerMap.containsKey(jobId)) {
             TerminationChecker terminationChecker = terminationCheckerMap.get(jobId);
             terminationChecker.setTerminated();
+            terminationCheckerMap.remove(jobId);
         }
     }
 

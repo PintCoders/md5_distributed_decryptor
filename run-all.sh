@@ -73,15 +73,15 @@ sleep 5  # time 1
 echo "Time 1"
 kill `echo -n ${PIDS["nodes"]} | cut -d' ' -f5`  # Node 5 dies
 
-sleep 5  # time 2
+sleep 10  # time 2
 echo "Time 2"
 kill `echo -n ${PIDS["nodes"]} | cut -d' ' -f4`  # Node 5 dies
 kill `echo -n ${PIDS["nodes"]} | cut -d' ' -f6`  # Node 5 dies
 
-#sleep 5 # time 3
-#echo "Time 3"
-#launch-client ${key[6]}
-#launch-client ${key[4]}
+sleep 15 # time 3
+echo "Time 3"
+launch-client ${key[6]}
+launch-client ${key[4]}
 
 #wait for all
 wait 

@@ -65,7 +65,7 @@ public class PasswordCrackerTransport extends TServerTransport {
                     System.out.println("Wait for Client");
                 }
                 return workerSocket;
-            } else if (workersAddressList.size() >= NUMBER_OF_WORKER) {
+            } else if (workersAddressList.size() >= NUMBER_OF_WORKER || !workersInfoMap.containsKey(connectedAddress)) {
                 return new TSocket(socket);
             } else {
                 socket.close();
