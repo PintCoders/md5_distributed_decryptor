@@ -1,13 +1,15 @@
 #!/bin/bash
-
-trap kill-all SIGHUP SIGINT SIGTERM EXIT  # Always call cleanup
-
+# Options for the experiment
+# 
+WORKER_FILE=/home/vicente/PasswordCrackerThrift/PasswordCrackerMaster/WorkerInfoList.json
 MASTER_PORT=18000
 WORKER_PORT=17000
-CLIENT=10.20.13.123
 MASTER=10.20.13.123
-NODES=( 10.20.13.124 10.20.13.125 10.20.13.126 10.20.13.127 10.20.13.128 10.20.13.129 10.20.13.130 10.20.13.131)
 
+# -----------------------------------------------------------------------
+trap kill-all SIGHUP SIGINT SIGTERM EXIT  # Always call cleanup
+
+NODES=`cat $WORKER_FILE | grep -Po '[0-9]*\..*\..*\.[0-9]*'`
 CLASSPATH=`find $(pwd) -name "*.jar" -printf ":%p"`
 
 declare -A PIDS
@@ -21,7 +23,7 @@ function run-all()
   sleep 1
   for node in ${NODES[@]}; do
     ssh -t -t $node java -cp $CLASSPATH PasswordCrackerWorker.PasswordCrackerWorkerMain $MASTER $MASTER_PORT $WORKER_PORT &
-    PIDS["nodes"]="$! ${PIDS["nodes"]}"
+    PIDS["nodes"]="${PIDS["nodes"]} $!"
   done
   sleep 2
 }
@@ -83,8 +85,6 @@ echo "Time 3"
 launch-client ${key[6]}
 launch-client ${key[4]}
 
-#wait for all
-wait 
 # ---- Cleanup
 
 kill-all

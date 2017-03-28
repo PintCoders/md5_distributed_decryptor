@@ -8,6 +8,7 @@ import org.apache.thrift.transport.TTransportException;
 
 import java.net.Socket;
 import java.util.HashMap;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 import static PasswordCrackerMaster.PasswordCrackerConts.HEART_BEAT_INITIAL_DELAY;
@@ -52,6 +53,7 @@ public class PasswordCrackerTransport extends TServerTransport {
                 String workerAddress = socket.getInetAddress().getHostAddress();
                 workersSocketList.add(workerSocket);
                 workersAddressList.add(workerAddress);
+               Collections.sort(workersAddressList);
 
                 if (workersAddressList.size() == NUMBER_OF_WORKER) {
                     heartBeatCheckPool.scheduleAtFixedRate(() -> {
@@ -66,7 +68,7 @@ public class PasswordCrackerTransport extends TServerTransport {
                 }
                 return workerSocket;
             } else if (workersAddressList.size() >= NUMBER_OF_WORKER || !workersInfoMap.containsKey(connectedAddress)) {
-                return new TSocket(socket);
+               return new TSocket(socket);
             } else {
                 socket.close();
                 return null;
@@ -79,5 +81,3 @@ public class PasswordCrackerTransport extends TServerTransport {
         throw new TTransportException(1, "No underlying server socket.");
     }
 }
-
-
