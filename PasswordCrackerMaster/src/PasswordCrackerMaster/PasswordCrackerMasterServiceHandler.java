@@ -35,8 +35,8 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
     public static ConcurrentHashMap<String, Long> latestHeartbeatInMillis = new ConcurrentHashMap<>(); // <workerAddress, time>
     public static ExecutorService workerPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
     public static ScheduledExecutorService heartBeatCheckPool = Executors.newScheduledThreadPool(1);
-    public static ConcurrentHashMap<String, List<PasswordTask>> taskMap = new ConcurrentHashMap<>();
-    public static Lock lock = new ReentrantLock();
+    public static ConcurrentHashMap<String, List<PasswordTask>> taskMap = new ConcurrentHashMap<>(); // <IP addr, list_tasks>
+    public static Lock lock = new ReentrantLock(); //We need to synchronize those static member variables
 
     /*
      * The decrypt method create the job and put the job with jobId (encrypted Password) in map.
@@ -83,8 +83,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
                         new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workerAddress, WORKER_PORT));
                 worker.startFindPasswordInRange(subRangeBegin, subRangeEnd, encryptedPassword, findPasswordCallBack);
 
-                List<PasswordTask> listOfTasks = new LinkedList<>();
-                taskMap.putIfAbsent(workerAddress, listOfTasks);
+                taskMap.putIfAbsent(workerAddress, new LinkedList<>());
                 taskMap.get(workerAddress).add(new PasswordTask(subRangeBegin, subRangeEnd, workerId, encryptedPassword));
             }
         }
@@ -106,6 +105,7 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
     public static void redistributeFailedTask(ArrayList<Integer> failedWorkerIdList) {
 
         // Indices of the array must be removed reverserly
+        // Fill up badAddresses with those very bad addresses
         Collections.reverse(failedWorkerIdList);
         ArrayList<String> badAddresses = new ArrayList<>();
         for (Integer workerIdInteger : failedWorkerIdList) {
@@ -119,12 +119,16 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
             List<PasswordTask> listTask = taskMap.get(faultyWorkerAddress);
             taskMap.remove(faultyWorkerAddress);
             for (PasswordTask task : listTask) {
-
+                    // Compute new workerId
                     int workerId = task.workerId % workersAddressList.size();
                     String newWorkerAddress = workersAddressList.get(workerId);
+
                     System.out.println("Reassigning task: " + task.workerId + " from job: " + task.encryptedPassword + 
                             " to workerId:" + workerId + "IP: " + newWorkerAddress);
+
                     task.workerId = workerId;
+
+                    // Move the task to a new worker
                     taskMap.putIfAbsent(newWorkerAddress, new LinkedList<>());
                     taskMap.get(newWorkerAddress).add(task);
 
@@ -157,13 +161,13 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
      *  and use the workerPool
      */
     public static void checkHeartBeat() {
-        /** COMPLETE **/
         int workerId = 0;
         final long thresholdAge = 5_000;
         long currentTime = System.currentTimeMillis();
 
         ArrayList<Integer> failedWorkerIdList = new ArrayList<>();
 
+        // Fill up failedWorkerIdList
         for (String addr : workersAddressList) {
           long originTime = latestHeartbeatInMillis.get(addr);
           long timeElapsed = currentTime - originTime;
@@ -174,9 +178,9 @@ public class PasswordCrackerMasterServiceHandler implements PasswordCrackerMaste
 
           workerId++;
         }
-        lock.lock(); // Mutual exclusion is needed here
+        lock.lock();   // Mutual exclusion is needed here
         redistributeFailedTask(failedWorkerIdList);
-        lock.unlock(); // Mutual exclusion is needed here
+        lock.unlock(); 
     }
 }
 
@@ -196,13 +200,16 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
     public void onComplete(PasswordCrackerWorkerService.AsyncClient.startFindPasswordInRange_call startFindPasswordInRange_call) {
         try {
             String findPasswordResult = startFindPasswordInRange_call.getResult();
-            /** COMPLETE **/
 
             if (findPasswordResult != null) {
                 jobTermination(jobId);
                 PasswordDecrypterJob futureJob = jobInfoMap.get(jobId);
                 futureJob.setPassword(findPasswordResult);
 
+                // I know, a nested loop is never a good thing.
+                // But look, there are at most 8 workes and <40 tasks
+
+                // Remove tasks related to this job
                 taskMap.forEach((workerAddress, listTasks) ->  {
                     Iterator<PasswordTask> it = listTasks.iterator();
                     while (it.hasNext()) {
@@ -234,7 +241,6 @@ class FindPasswordMethodCallback implements AsyncMethodCallback<PasswordCrackerW
             for (String workerAddress : workersAddressList) {
                 worker = new PasswordCrackerWorkerService.
                         AsyncClient(new TBinaryProtocol.Factory(), new TAsyncClientManager(), new TNonblockingSocket(workerAddress, WORKER_PORT));
-                /** COMPLETE **/
 
                 worker.reportTermination(jobId, new AsyncMethodCallback<PasswordCrackerWorkerService.AsyncClient.reportTermination_call>() {
                   @Override

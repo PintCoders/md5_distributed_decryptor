@@ -25,12 +25,11 @@ public class PasswordCrackerClient {
             TProtocol protocol = new TBinaryProtocol(transport);
             
             PasswordCrackerMasterService.Client passwordCrackerService = new PasswordCrackerMasterService.Client(protocol);
-            // ---
-            /** COMPLETE **/
+
             // Invokes a method in Master (via RPC) and gives the encrypted password and return the original password
 
             String password = passwordCrackerService.decrypt(encryptedPassword);
-            // ---
+
             System.out.println("encryptedPassword : " + encryptedPassword + "\npassword : " + password);
 
             transport.close();

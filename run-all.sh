@@ -15,7 +15,6 @@ CLASSPATH=`find $(pwd) -name "*.jar" -printf ":%p"`
 declare -A PIDS
 declare -A KEYS
 
-
 function run-all() 
 {
   ssh -t -t $MASTER java -cp $CLASSPATH PasswordCrackerMaster.PasswordCrackerMasterMain $MASTER_PORT &
@@ -30,9 +29,7 @@ function run-all()
 
 function kill-all() 
 {
-  read -a clients <<< ${PIDS["clients"]}
-
-  for client in ${clients[@]}; do
+  for client in ${PIDS["clients"]}; do
     wait $client
   done
   kill ${PIDS[@]}
@@ -63,22 +60,21 @@ run-all
 # ----
 
 # Time 0
-declare -a key
 read -a key <<< ${!KEYS[@]}
+read -a nodes <<< ${PIDS["nodes"]}
 
 echo "Time 0"
 launch-client ${key[1]}
-sleep 1
 launch-client ${key[3]}
 
 sleep 5  # time 1
 echo "Time 1"
-kill `echo -n ${PIDS["nodes"]} | cut -d' ' -f5`  # Node 5 dies
+kill ${nodes[5]}  # Node 5 dies
 
 sleep 10  # time 2
 echo "Time 2"
-kill `echo -n ${PIDS["nodes"]} | cut -d' ' -f4`  # Node 5 dies
-kill `echo -n ${PIDS["nodes"]} | cut -d' ' -f6`  # Node 5 dies
+kill ${nodes[4]}
+kill ${nodes[6]}
 
 sleep 15 # time 3
 echo "Time 3"
